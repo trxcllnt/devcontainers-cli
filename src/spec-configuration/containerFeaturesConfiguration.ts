@@ -224,7 +224,7 @@ export function getContainerFeaturesBaseDockerFile(useBuildKitBuildContexts = fa
 
 #{nonBuildKitFeatureContentFallback}
 ${(() => {
-	return useBuildKitBuildContexts ? '' : `
+	return useBuildKitBuildContexts ? `` : `
 FROM $_DEV_CONTAINERS_BASE_IMAGE AS dev_containers_feature_content_normalize
 USER root
 COPY --from=dev_containers_feature_content_source {contentSourceRootPath} /tmp/build-features/
@@ -237,7 +237,10 @@ FROM $_DEV_CONTAINERS_BASE_IMAGE AS dev_containers_target_stage
 USER root
 
 ${(() => {
-	return useBuildKitBuildContexts ? '' : `
+	return useBuildKitBuildContexts ? `
+COPY --from=dev_containers_feature_content_source {contentSourceRootPath}/devcontainer-features.builtin.env /tmp/build-features/
+RUN chmod -R 0700 /tmp/build-features
+` : `
 COPY --from=dev_containers_feature_content_normalize /tmp/build-features /tmp/build-features
 `;
 })()}
@@ -319,7 +322,6 @@ function escapeQuotesForShell(input: string) {
 
 export function getFeatureLayers(featuresConfig: FeaturesConfig, containerUser: string, remoteUser: string, useBuildKitBuildContexts = false, contentSourceRootPath = '/tmp/build-features/') {
 	let result = `RUN \\
-mkdir -p /tmp/build-features && \\
 echo "_CONTAINER_USER_HOME=$(getent passwd ${containerUser} | cut -d: -f6)" >> /tmp/build-features/devcontainer-features.builtin.env && \\
 echo "_REMOTE_USER_HOME=$(getent passwd ${remoteUser} | cut -d: -f6)" >> /tmp/build-features/devcontainer-features.builtin.env
 
@@ -329,7 +331,7 @@ echo "_REMOTE_USER_HOME=$(getent passwd ${remoteUser} | cut -d: -f6)" >> /tmp/bu
 	const folders = (featuresConfig.featureSets || []).filter(y => y.internalVersion !== '2').map(x => x.features[0].consecutiveId);
 	folders.forEach(folder => {
 		if (!useBuildKitBuildContexts) {
-		result += `RUN cd /tmp/build-features/${folder} \\
+			result += `RUN cd /tmp/build-features/${folder} \\
 && chmod +x ./install.sh \\
 && ./install.sh
 
@@ -337,8 +339,7 @@ echo "_REMOTE_USER_HOME=$(getent passwd ${remoteUser} | cut -d: -f6)" >> /tmp/bu
 		} else {
 			const source = path.posix.join(contentSourceRootPath, folder!);
 			result += `RUN --mount=type=bind,from=dev_containers_feature_content_source,source=${source},target=/tmp/build-features-src/${folder} \\
-    mkdir -p /tmp/build-feat \\
- && cp -ar /tmp/build-features-src/${folder} /tmp/build-features/ \\
+    cp -ar /tmp/build-features-src/${folder} /tmp/build-features/ \\
  && cd /tmp/build-features/${folder} \\
  && chmod +x ./install.sh \\
  && ./install.sh \\
@@ -356,18 +357,18 @@ echo "_REMOTE_USER_HOME=$(getent passwd ${remoteUser} | cut -d: -f6)" >> /tmp/bu
 RUN cd /tmp/build-features/${feature.consecutiveId} \\
 && chmod +x ./devcontainer-features-install.sh \\
 && ./devcontainer-features-install.sh
+
 `;
 			} else {
 				const source = path.posix.join(contentSourceRootPath, feature.consecutiveId!);
 				result += `
 RUN --mount=type=bind,from=dev_containers_feature_content_source,source=${source},target=/tmp/build-features-src/${feature.consecutiveId} \\
-    mkdir -p /tmp/build-features \\
- && cp -ar /tmp/build-features-src/${feature.consecutiveId} /tmp/build-features/ \\
- && chmod -R 0700 /tmp/build-features \\
+    cp -ar /tmp/build-features-src/${feature.consecutiveId} /tmp/build-features/ \\
  && cd /tmp/build-features/${feature.consecutiveId} \\
  && chmod +x ./devcontainer-features-install.sh \\
  && ./devcontainer-features-install.sh \\
  && rm -rf /tmp/build-features/${feature.consecutiveId}
+
 `;
 			}
 		});
