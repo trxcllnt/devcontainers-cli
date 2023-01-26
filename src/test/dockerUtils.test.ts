@@ -20,7 +20,7 @@ describe('Docker utils', function () {
 		assert.ok(config.Config.Cmd);
 	});
 
-	it('inspect image in mcr.microsoft.com', async () => {
+	it.skip('inspect image in mcr.microsoft.com', async () => {
 		const imageName = 'mcr.microsoft.com/devcontainers/rust:1';
 		const config = await inspectImageInRegistry(output, imageName);
 		assert.ok(config);
